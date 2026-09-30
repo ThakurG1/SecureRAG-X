@@ -1,0 +1,26 @@
+# Genuinely-free, CPU-only image for Hugging Face Spaces (Docker SDK, free tier: 2 vCPU / 16GB RAM).
+# No GPU, no CUDA -- uses a quantized GGUF build of Llama-3-8B via llama-cpp-python instead of
+# transformers+bitsandbytes. Slower (a few tokens/sec) but costs nothing and stays up.
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake git \
+    && rm -rf /var/lib/apt/lists/*
+    # build-essential+cmake are required to compile llama-cpp-python's C++ backend on install
+
+WORKDIR /app
+COPY requirements-free.txt .
+RUN pip install --no-cache-dir -r requirements-free.txt
+
+COPY adaptive_rag_shield.py /adaptive_rag_shield.py
+COPY service/ .
+
+ENV LLM_BACKEND=llamacpp \
+    GGUF_REPO=bartowski/Meta-Llama-3-8B-Instruct-GGUF \
+    GGUF_FILE=Meta-Llama-3-8B-Instruct-Q4_K_M.gguf \
+    HF_MAX_NEW_TOKENS=200 \
+    RATE_LIMIT_PER_MIN=10 \
+    PORT=7860
+    # 7860 is the port Hugging Face Spaces expects for Docker SDK apps
+
+EXPOSE 7860
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 1"]

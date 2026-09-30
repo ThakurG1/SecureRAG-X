@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+  rag-shield:
+    build:
+      context: .
+      dockerfile: service/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      LLM_BACKEND: hf
+      HF_MODEL: meta-llama/Meta-Llama-3-8B-Instruct
+      HF_LOAD_4BIT: "1"
+      HF_TOKEN: ${HF_TOKEN}            # export HF_TOKEN=hf_xxx before `docker compose up`
+      API_KEYS: ${API_KEYS:-dev-key-change-me}
+      RATE_LIMIT_PER_MIN: "30"
+    volumes:
+      - hf-cache:/root/.cache/huggingface   # avoid re-downloading the model every restart
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  hf-cache:
